@@ -276,6 +276,7 @@ extension NSBezierPath
                 )
             case .closePathBezierPathElement:
                 mutablePath.closeSubpath()
+                
             }
         }
         return mutablePath

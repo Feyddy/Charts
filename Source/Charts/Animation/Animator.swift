@@ -18,7 +18,6 @@ public protocol AnimatorDelegate
 {
     /// Called when the Animator has stepped.
     func animatorUpdated(_ animator: Animator)
-    print('123123)
     
     /// Called when the Animator has stopped.
     func animatorStopped(_ animator: Animator)
