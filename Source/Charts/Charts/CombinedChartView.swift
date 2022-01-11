@@ -16,7 +16,7 @@ import CoreGraphics
 open class CombinedChartView: BarLineChartViewBase, CombinedChartDataProvider
 {
     /// the fill-formatter used for determining the position of the fill-line
-    internal var _fillFormatter: FillFormatter!
+    internal var _fillFormatter: IFillFormatter!
     
     /// enum that allows to specify the order in which the different data objects for the combined-chart are drawn
     @objc(CombinedChartDrawOrder)
@@ -40,7 +40,7 @@ open class CombinedChartView: BarLineChartViewBase, CombinedChartDataProvider
         
         _fillFormatter = DefaultFillFormatter()
         
-        renderer = CombinedChartRenderer(chart: self, animator: chartAnimator, viewPortHandler: viewPortHandler)
+        renderer = CombinedChartRenderer(chart: self, animator: _animator, viewPortHandler: _viewPortHandler)
     }
     
     open override var data: ChartData?
@@ -60,7 +60,7 @@ open class CombinedChartView: BarLineChartViewBase, CombinedChartDataProvider
         }
     }
     
-    @objc open var fillFormatter: FillFormatter
+    @objc open var fillFormatter: IFillFormatter
     {
         get
         {
@@ -79,7 +79,7 @@ open class CombinedChartView: BarLineChartViewBase, CombinedChartDataProvider
     /// - Returns: The Highlight object (contains x-index and DataSet index) of the selected value at the given touch point inside the CombinedChart.
     open override func getHighlightByTouchPoint(_ pt: CGPoint) -> Highlight?
     {
-        if data === nil
+        if _data === nil
         {
             Swift.print("Can't select by touch. No data set.")
             return nil
@@ -106,7 +106,7 @@ open class CombinedChartView: BarLineChartViewBase, CombinedChartDataProvider
     {
         get
         {
-            return data as? CombinedChartData
+            return _data as? CombinedChartData
         }
     }
     
@@ -176,11 +176,20 @@ open class CombinedChartView: BarLineChartViewBase, CombinedChartDataProvider
         set { (renderer as! CombinedChartRenderer).drawBarShadowEnabled = newValue }
     }
     
+    /// if set to true, a rounded rectangle with the corners is drawn on each bar
+    @objc open var drawRoundedBarEnabled: Bool
+           {
+           get { return (renderer as! CombinedChartRenderer).drawRoundedBarEnabled }
+           set { (renderer as! CombinedChartRenderer).drawRoundedBarEnabled = newValue }
+       }
+    
     /// `true` if drawing values above bars is enabled, `false` ifnot
     open var isDrawValueAboveBarEnabled: Bool { return (renderer as! CombinedChartRenderer).drawValueAboveBarEnabled }
     
     /// `true` if drawing shadows (maxvalue) for each bar is enabled, `false` ifnot
     open var isDrawBarShadowEnabled: Bool { return (renderer as! CombinedChartRenderer).drawBarShadowEnabled }
+    
+
     
     /// the order in which the provided data objects should be drawn.
     /// The earlier you place them in the provided array, the further they will be in the background. 
@@ -197,11 +206,17 @@ open class CombinedChartView: BarLineChartViewBase, CombinedChartDataProvider
         }
     }
     
+
+    
     /// Set this to `true` to make the highlight operation full-bar oriented, `false` to make it highlight single values
     @objc open var highlightFullBarEnabled: Bool = false
     
     /// `true` the highlight is be full-bar oriented, `false` ifsingle-value
     open var isHighlightFullBarEnabled: Bool { return highlightFullBarEnabled }
+    
+    /// - returns: `true` if drawing rounded bars is enabled, `false` ifnot
+    open var isDrawRoundedBarEnabled: Bool { return drawRoundedBarEnabled }
+
     
     // MARK: - ChartViewBase
     
@@ -213,17 +228,17 @@ open class CombinedChartView: BarLineChartViewBase, CombinedChartDataProvider
             isDrawMarkersEnabled && valuesToHighlight()
             else { return }
         
-        for i in highlighted.indices
+        for i in 0 ..< _indicesToHighlight.count
         {
-            let highlight = highlighted[i]
+            let highlight = _indicesToHighlight[i]
             
             guard 
                 let set = combinedData?.getDataSetByHighlight(highlight),
-                let e = data?.entry(for: highlight)
+                let e = _data?.entryForHighlight(highlight)
                 else { continue }
             
             let entryIndex = set.entryIndex(entry: e)
-            if entryIndex > Int(Double(set.entryCount) * chartAnimator.phaseX)
+            if entryIndex > Int(Double(set.entryCount) * _animator.phaseX)
             {
                 continue
             }
@@ -231,7 +246,7 @@ open class CombinedChartView: BarLineChartViewBase, CombinedChartDataProvider
             let pos = getMarkerPosition(highlight: highlight)
             
             // check bounds
-            if !viewPortHandler.isInBounds(x: pos.x, y: pos.y)
+            if !_viewPortHandler.isInBounds(x: pos.x, y: pos.y)
             {
                 continue
             }

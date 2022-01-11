@@ -11,9 +11,14 @@
 
 import Foundation
 import CoreGraphics
+@objc
+public enum BarGradientOrientation: Int
+{
+    case vertical
+    case horizontal
+}
 
-
-open class BarChartDataSet: BarLineScatterCandleBubbleChartDataSet, BarChartDataSetProtocol
+open class BarChartDataSet: BarLineScatterCandleBubbleChartDataSet, IBarChartDataSet
 {
     private func initialize()
     {
@@ -29,7 +34,7 @@ open class BarChartDataSet: BarLineScatterCandleBubbleChartDataSet, BarChartData
         initialize()
     }
     
-    public override init(entries: [ChartDataEntry], label: String)
+    public override init(entries: [ChartDataEntry]?, label: String?)
     {
         super.init(entries: entries, label: label)
         initialize()
@@ -48,37 +53,70 @@ open class BarChartDataSet: BarLineScatterCandleBubbleChartDataSet, BarChartData
     /// stacks. All values belonging to a stack are calculated separately.
     private func calcEntryCountIncludingStacks(entries: [BarChartDataEntry])
     {
-        _entryCountStacks = entries.lazy
-            .map(\.stackSize)
-            .reduce(into: 0, +=)
+        _entryCountStacks = 0
+        
+        for i in 0 ..< entries.count
+        {
+            if let vals = entries[i].yValues
+            {
+                _entryCountStacks += vals.count
+            }
+            else
+            {
+                _entryCountStacks += 1
+            }
+        }
     }
     
     /// calculates the maximum stacksize that occurs in the Entries array of this DataSet
     private func calcStackSize(entries: [BarChartDataEntry])
     {
-        _stackSize = entries.lazy
-            .map(\.stackSize)
-            .max() ?? 1
+        for i in 0 ..< entries.count
+        {
+            if let vals = entries[i].yValues
+            {
+                if vals.count > _stackSize
+                {
+                    _stackSize = vals.count
+                }
+            }
+        }
     }
     
     open override func calcMinMax(entry e: ChartDataEntry)
     {
-        guard let e = e as? BarChartDataEntry,
-            !e.y.isNaN
+        guard let e = e as? BarChartDataEntry
             else { return }
         
-        if e.yValues == nil
+        if !e.y.isNaN
         {
-            _yMin = Swift.min(e.y, _yMin)
-            _yMax = Swift.max(e.y, _yMax)
+            if e.yValues == nil
+            {
+                if e.y < _yMin
+                {
+                    _yMin = e.y
+                }
+                
+                if e.y > _yMax
+                {
+                    _yMax = e.y
+                }
+            }
+            else
+            {
+                if -e.negativeSum < _yMin
+                {
+                    _yMin = -e.negativeSum
+                }
+                
+                if e.positiveSum > _yMax
+                {
+                    _yMax = e.positiveSum
+                }
+            }
+            
+            calcMinMaxX(entry: e)
         }
-        else
-        {
-            _yMin = Swift.min(-e.negativeSum, _yMin)
-            _yMax = Swift.max(e.positiveSum, _yMax)
-        }
-
-        calcMinMaxX(entry: e)
     }
     
     /// The maximum number of bars that can be stacked upon another in this DataSet.
@@ -90,7 +128,7 @@ open class BarChartDataSet: BarLineScatterCandleBubbleChartDataSet, BarChartData
     /// `true` if this DataSet is stacked (stacksize > 1) or not.
     open var isStacked: Bool
     {
-        return _stackSize > 1
+        return _stackSize > 1 ? true : false
     }
     
     /// The overall entry count, including counting each stack-value individually
@@ -102,6 +140,8 @@ open class BarChartDataSet: BarLineScatterCandleBubbleChartDataSet, BarChartData
     /// array of labels used to describe the different values of the stacked bars
     open var stackLabels: [String] = []
     
+    open var gridColors: [String] = []
+    
     // MARK: - Styling functions and accessors
     
     /// the color used for drawing the bar-shadows. The bar shadows is a surface behind the bar that indicates the maximum value
@@ -112,9 +152,28 @@ open class BarChartDataSet: BarLineScatterCandleBubbleChartDataSet, BarChartData
 
     /// the color drawing borders around the bars.
     open var barBorderColor = NSUIColor.black
+    
+    #if !os(OSX)
+    /// the option rounding bar corners
+    open var barRoundingCorners: UIRectCorner = .allCorners
+    #endif
+
+    open var barGradientColors: [[NSUIColor]]?
+    open var barGradientOrientation: BarGradientOrientation = .vertical
 
     /// the alpha value (transparency) that is used for drawing the highlight indicator bar. min = 0.0 (fully transparent), max = 1.0 (fully opaque)
     open var highlightAlpha = CGFloat(120.0 / 255.0)
+    
+    /// - returns: The gradient colors at the given index of the DataSet's gradient color array.
+    /// This prevents out-of-bounds by performing a modulus on the gradient color index, so colours will repeat themselves.
+    open func barGradientColor(at index: Int) -> [NSUIColor]?
+    {
+        guard let gradientColors = barGradientColors else { return nil }
+        return gradientColors[index % gradientColors.count]
+    }
+    
+    
+    
     
     // MARK: - NSCopying
     
@@ -124,7 +183,7 @@ open class BarChartDataSet: BarLineScatterCandleBubbleChartDataSet, BarChartData
         copy._stackSize = _stackSize
         copy._entryCountStacks = _entryCountStacks
         copy.stackLabels = stackLabels
-
+        copy.gridColors = gridColors
         copy.barShadowColor = barShadowColor
         copy.barBorderWidth = barBorderWidth
         copy.barBorderColor = barBorderColor

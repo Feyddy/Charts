@@ -1,5 +1,5 @@
 //
-//  BarChartDataSetProtocol.swift
+//  IBarChartDataSet.swift
 //  Charts
 //
 //  Copyright 2015 Daniel Cohen Gindi & Philipp Jahoda
@@ -13,7 +13,7 @@ import Foundation
 import CoreGraphics
 
 @objc
-public protocol BarChartDataSetProtocol: BarLineScatterCandleBubbleChartDataSetProtocol
+public protocol IBarChartDataSet: IBarLineScatterCandleBubbleChartDataSet
 {
     // MARK: - Data functions and accessors
     
@@ -28,6 +28,12 @@ public protocol BarChartDataSetProtocol: BarLineScatterCandleBubbleChartDataSetP
     /// the color used for drawing the bar-shadows. The bar shadows is a surface behind the bar that indicates the maximum value
     var barShadowColor: NSUIColor { get set }
     
+    #if !os(OSX)
+    /// the option rounding bar corners
+    var barRoundingCorners: UIRectCorner { get set }
+    #endif
+    
+
     /// the width used for drawing borders around the bars. If borderWidth == 0, no border will be drawn.
     var barBorderWidth : CGFloat { get set }
 
@@ -39,4 +45,7 @@ public protocol BarChartDataSetProtocol: BarLineScatterCandleBubbleChartDataSetP
     
     /// array of labels used to describe the different values of the stacked bars
     var stackLabels: [String] { get set }
+    
+    /// array of labels used to describe the different values of the stacked bars
+    var gridColors: [String] { get set }
 }
